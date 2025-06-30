@@ -60,7 +60,8 @@ if __name__ == "__main__":
     }  # 材料定义所需参数，键名可自定义，字典长度应与material_definition函数中args参数个数一致
     model = TimeHistoryAnalysis(f'Test_THA')
     model.set_working_directory(f'./results_THA', folder_exists='delete')
-    model.analysis_settings(Ti, material_definition, material_paras, damping=0.05, thetaD=0, fv_duration=30)
+    model.analysis_settings(Ti, material_definition, material_paras, damping=0.05,
+                            thetaD=0, fv_duration=30, fv_factor=30)
     model.select_ground_motions('./data/GMs', ['Northridge', 'Kobe'], suffix='.txt')
     code_spec = np.loadtxt('./data/DBE_spec.txt')
     model.scale_ground_motions('b', 1, code_spec, plot=True)

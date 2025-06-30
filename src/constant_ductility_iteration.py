@@ -44,6 +44,7 @@ def _constant_ductility_iteration(
     scaling_factor: float,
     dt: float,
     fv_duration: float,
+    fv_factor: float,
     R_init: float,
     R_incr: float,
     Sa_shm_name: str,
@@ -142,6 +143,7 @@ def _constant_ductility_iteration(
                 P = 0
             else:
                 P = thetaD * E * height
+            fv_duration = max(fv_duration, fv_factor * Ti)
             solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, damping, mass)
             try:
                 if solver == 'auto':

@@ -44,6 +44,7 @@ def _constant_strength_analysis(
     scaling_factor: float,
     dt: float,
     fv_duration: float,
+    fv_factor: float,
     Sa_shm_name: str,
     solver: SOLVER_TYPING,
     hidden_prints: bool,
@@ -112,6 +113,7 @@ def _constant_strength_analysis(
             P = 0
         else:
             P = thetaD * E * height
+        fv_duration = max(fv_duration, fv_factor * Ti)
         solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, damping, mass)
         try:
             if solver == 'auto':

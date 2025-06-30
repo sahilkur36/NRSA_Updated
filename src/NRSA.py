@@ -132,6 +132,7 @@ class NRSA:
             mass: float=1,
             height: float=1,
             fv_duration: float=0.0,
+            fv_factor: float=0.0
         ):
         """设置分析参数
 
@@ -151,6 +152,7 @@ class NRSA:
             mass (float): 质量，默认1
             height (float, optional): 高度，默认1
             fv_duration (float, optional): 自由振动持续时间，默认0.0
+            fv_factor (float, optional): 自由振动系数，默认0.0
         
         Converge criteria for constant ductility analysis:
         --------------------------------------------------
@@ -164,6 +166,8 @@ class NRSA:
         力量纲响应与`mass`成正比
         * 等延性分析中，延性容差`tol_ductility`建议不低于0.01，强度折减系数`R`容差
         建议不低于0.001
+        * 自由振动时长等于`fv_duration`和`fv_factor * Ti`间的最大值，其中`Ti`是SDOF
+          的自振周期
         """
         # 只做相关检查，不做实际的操作
         if (period is not None) and (period[0] == 0):
@@ -197,6 +201,9 @@ class NRSA:
         if not isinstance(fv_duration, (int, float)) and fv_duration < 0:
             LOGGER.error(f'The free vibration duration should be a non-negative number: {fv_duration}')
             raise Exception('Analysis has been terminated')
+        if not isinstance(fv_factor, (int, float)) and fv_factor < 0:
+            LOGGER.error(f'The free vibration factor should be a non-negative number: {fv_factor}')
+            raise Exception('Analysis has been terminated')
         if isclose(damping, 0.05):
             self.damping_equal_5pct = True
         self.period = period
@@ -218,6 +225,7 @@ class NRSA:
         self.max_iter = max_iter
         self.height = height
         self.fv_duration = fv_duration
+        self.fv_factor = fv_factor
         LOGGER.success('Analysis settings have been set')
 
     def select_ground_motions(self,

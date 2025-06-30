@@ -61,6 +61,7 @@ class Win(QDialog):
         self.mass = nrsa.mass
         self.he = nrsa.height
         self.fv_duration = nrsa.fv_duration
+        self.fv_factor = nrsa.fv_factor
         self.suffix = nrsa.suffix
         self.GM_names = nrsa.GM_names
         self.GM_folder = nrsa.GM_folder
@@ -260,6 +261,7 @@ class _Worker(QThread):
         self.mass = win.mass
         self.he = win.he
         self.fv_duration = win.fv_duration
+        self.fv_factor = win.fv_factor
         self.suffix = win.suffix
         self.GM_names = win.GM_names
         self.GM_folder = win.GM_folder
@@ -457,6 +459,7 @@ class _Worker(QThread):
                     scaling_factor = self.GM_global_sf
                     dt = self.GM_dts[gm_idx]
                     fv_duration = self.fv_duration
+                    fv_factor = self.fv_factor
                     R_init = self.R_init
                     R_incr = self.R_incr
                     solver = self.solver
@@ -475,20 +478,20 @@ class _Worker(QThread):
                     if self.analysis_type == 'CDA':
                         args = (wkdir, subfolder, period_shm.name, N_period, material_function, para_group, damping,\
                                 target_ductility, thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt,\
-                                fv_duration, R_init, R_incr, Sa_shm.name, solver, tol_ductility, tol_R, max_iter,\
-                                hidden_prints, queue, stop_event, pause_event, lock)
+                                fv_duration, fv_factor, R_init, R_incr, Sa_shm.name, solver, tol_ductility, tol_R,\
+                                max_iter, hidden_prints, queue, stop_event, pause_event, lock)
                         func = constant_ductility_iteration
                     elif self.analysis_type == 'CSA':
                         scaling_factor *= self.GM_indiv_sf[gm_idx]
                         args = (wkdir, subfolder, period_shm.name, N_period, material_function, para_group, damping,\
-                                thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, Sa_shm.name,\
-                                solver, hidden_prints, queue, stop_event, pause_event, lock)
+                                thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, fv_factor,\
+                                Sa_shm.name, solver, hidden_prints, queue, stop_event, pause_event, lock)
                         func = constant_strength_analysis
                     elif self.analysis_type == 'THA':
                         scaling_factor *= self.GM_indiv_sf[gm_idx]
                         args = (wkdir, subfolder, Ti, material_function, para_group, damping, thetaD, mass, he,\
-                                gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, PERIOD_shm.name, N_PERIOD,\
-                                Sa_shm.name, solver, hidden_prints, queue, stop_event, pause_event, lock)
+                                gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, fv_factor, PERIOD_shm.name,
+                                N_PERIOD, Sa_shm.name, solver, hidden_prints, queue, stop_event, pause_event, lock)
                         func = time_history_analysis
                     else:
                         assert False, f'Unknow running type: {self.analysis_type}'

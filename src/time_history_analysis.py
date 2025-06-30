@@ -43,6 +43,7 @@ def _time_history_analysis(
     scaling_factor: float,
     dt: float,
     fv_duration: float,
+    fv_factor: float,
     periods_shm_name: str,
     N_PERIOD: int,
     Sa_shm_name: str,
@@ -116,6 +117,7 @@ def _time_history_analysis(
         P = 0
     else:
         P = thetaD * E * height
+    fv_duration = max(fv_duration, fv_factor * Ti)
     solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, damping, mass)
     try:
         res: dict[str, float]

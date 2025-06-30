@@ -31,6 +31,7 @@ class ConstantDuctilityAnalysis(NRSA):
             mass: float=1,
             height: float=1,
             fv_duration: float=0.0,
+            fv_factor: float=0.0,
         ):
         """设置分析参数
 
@@ -49,6 +50,7 @@ class ConstantDuctilityAnalysis(NRSA):
             mass (float): 质量，默认1
             height (float, optional): 高度，默认1
             fv_duration (float, optional): 自由振动持续时间，默认0.0
+            fv_factor (float, optional): 自由振动系数，默认0.0
         
         Converge criteria for constant ductility analysis:
         --------------------------------------------------
@@ -62,12 +64,14 @@ class ConstantDuctilityAnalysis(NRSA):
         力量纲响应与`mass`成正比
         * 等延性分析中，延性容差`tol_ductility`建议不低于0.01，强度折减系数`R`容差
         建议不低于0.001
+        * 自由振动时长等于`fv_duration`和`fv_factor * Ti`间的最大值，其中`Ti`是SDOF
+          的自振周期
         """
         Ti = 0
         super().analysis_settings(period, Ti, material_function, material_paras,
                                   damping, target_ductility, R_init, R_incr,
                                   tol_ductility, tol_R, max_iter, thetaD, mass,
-                                  height, fv_duration)
+                                  height, fv_duration, fv_factor)
 
 class CSA_THA(NRSA):
     def __init__(self, job_name: str, cache_dir: Path | str, analysis_type: str):
@@ -359,7 +363,8 @@ class ConstantStrengthAnalysis(CSA_THA):
             thetaD: float=0,
             mass: float=1,
             height: float=1,
-            fv_duration: float=0.0,                  
+            fv_duration: float=0.0,
+            fv_factor: float=0.0,
         ):
         """设置分析参数
 
@@ -372,11 +377,12 @@ class ConstantStrengthAnalysis(CSA_THA):
             mass (float): 质量，默认1
             height (float, optional): 高度，默认1
             fv_duration (float, optional): 自由振动持续时间，默认0.0
+            fv_factor (float, optional): 自由振动系数，默认0.0
         """
         Ti = 0
         super().analysis_settings(period, Ti, material_function, material_paras, damping,
             10, 1, 1, 0.01, 0.01, 100,
-            thetaD, mass, height, fv_duration)
+            thetaD, mass, height, fv_duration, fv_factor)
 
 
 class TimeHistoryAnalysis(CSA_THA):
@@ -391,7 +397,8 @@ class TimeHistoryAnalysis(CSA_THA):
             thetaD: float=0,
             mass: float=1,
             height: float=1,
-            fv_duration: float=0.0,                  
+            fv_duration: float=0.0,
+            fv_factor: float=0.0
         ):
         """设置分析参数
 
@@ -404,10 +411,11 @@ class TimeHistoryAnalysis(CSA_THA):
             mass (float): 质量，默认1
             height (float, optional): 高度，默认1
             fv_duration (float, optional): 自由振动持续时间，默认0.0
+            fv_factor (float, optional): 自由振动系数，默认0.0
         """
         super().analysis_settings(None, Ti, material_function, material_paras, damping,
             10, 1, 1, 0.01, 0.01, 100,
-            thetaD, mass, height, fv_duration)
+            thetaD, mass, height, fv_duration, fv_factor)
         
     def get_results(self,
             gm_name: str,
