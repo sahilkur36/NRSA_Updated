@@ -47,7 +47,8 @@ def _constant_ductility_iteration(
     fv_factor: float,
     R_init: float,
     R_incr: float,
-    Sa_shm_name: str,
+    Sa_5pct_shm_name: str,
+    Sa_spc_shm_name: str,
     solver: SOLVER_TYPING,
     tol_ductility: float,
     tol_R: float,
@@ -81,7 +82,8 @@ def _constant_ductility_iteration(
         fv_duration (float): 自由振动持续时间
         R_init (float): 初始强度折减系数
         R_incr (float): 强度折减系数增量
-        Sa_shm_name (str): 加速度反应谱共享内存名
+        Sa_5pct_shm_name (str): 共享内存名，对应于无缩放，5%阻尼比的弹性谱加速度
+        Sa_spc_shm_name (str): 共享内存名，对应于无缩放，分析用阻尼比的弹性谱加速度
         solver (SOLVER_TYPES): SODF求解器类型
         tol_ductility (float): 延性(μ)收敛容差
         tol_R (float): 相邻强度折减系数(R)收敛容差
@@ -102,14 +104,17 @@ def _constant_ductility_iteration(
     periods = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=periods_shm.buf).copy()
     periods_shm.close()
     periods: list[float] = list(periods)
-    Sa_shm = SharedMemory(name=Sa_shm_name)
-    Sa_ls = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=Sa_shm.buf).copy()
-    Sa_shm.close()
+    Sa_5pct_shm = SharedMemory(name=Sa_5pct_shm_name)
+    Sa_5pct_ls = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=Sa_5pct_shm.buf).copy()
+    Sa_5pct_shm.close()
+    Sa_spc_shm = SharedMemory(name=Sa_spc_shm_name)
+    Sa_spc_ls = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=Sa_spc_shm.buf).copy()
+    Sa_spc_shm.close()
     gm_shm = SharedMemory(name=gm_shm_name)
     th = np.ndarray(shape=(NPTS,), dtype=np.dtype('float64'), buffer=gm_shm.buf).copy()
     gm_shm.close()
     num_ana = 0  # 计算该地震动所进行的总SDOF分析次数
-    results = pd.DataFrame(None, columns=['T', 'Sa', 'E', 'Fy', 'uy', 'R', 'maxDisp', 'maxVel', 'maxAccel', 'Ec', 'Ev', 'maxReaction', 'CD', 'CPD','resDisp', 'solving_converge', 'iter_converge', 'n_iter', 'miu'])
+    results = pd.DataFrame(None, columns=['T', 'Sa_5pct', 'Sa_spc', 'E', 'Fy', 'uy', 'R', 'maxDisp', 'maxVel', 'maxAccel', 'Ec', 'Ev', 'maxReaction', 'CD', 'CPD','resDisp', 'solving_converge', 'iter_converge', 'n_iter', 'miu'])
     start_time = time.time()
     num_iters: list[int] = []  # 迭代次数
     solving_converge = 1  # 求解是否收敛，如果有不收敛则变为False
@@ -131,13 +136,14 @@ def _constant_ductility_iteration(
         miu_prev = 0  # 前一次迭代的延性
         iter_status = False  # 迭代状态
         best_res = None  # 最优结果
-        Sa = Sa_ls[idx]  # 弹性谱加速度
+        Sa_5pct = Sa_5pct_ls[idx]  # 无缩放，5%阻尼比谱加速度
+        Sa_spc = Sa_spc_ls[idx]  # 无缩放，分析用阻尼比谱加速度
         for n_iter in range(1, max_iter + 1):
             if stop_event.is_set():
                 queue.put({'e': '中断计算'})
                 return
             pause_event.wait()
-            mat_paras, Fy, E = material_function(Ti, mass, R, Sa, *material_paras)
+            mat_paras, Fy, E = material_function(Ti, mass, R, Sa_5pct, Sa_spc, scaling_factor, *material_paras)
             uy = Fy / E
             if thetaD == 0:
                 P = 0
@@ -258,7 +264,8 @@ def _constant_ductility_iteration(
         row = len(results)
         # 无论迭代收敛或计算收敛是否成功，都记录结果
         results.loc[row] = best_res
-        results.loc[row, 'Sa'] = Sa
+        results.loc[row, 'Sa_5pct'] = Sa_5pct
+        results.loc[row, 'Sa_spc'] = Sa_spc
         results.loc[row, 'E'] = best_E
         results.loc[row, 'Fy'] = best_Fy
         results.loc[row, 'uy'] = best_Fy / best_E

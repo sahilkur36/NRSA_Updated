@@ -11,7 +11,7 @@ from PyQt5.QtCore import QThread, pyqtSignal, Qt, QTimer
 from PyQt5.QtWidgets import QMessageBox, QDialog
 
 from ui.Win import Ui_Win
-from .config import LOGGER, ANA_TYPE_NAME, PERIOD
+from .config import LOGGER, ANA_TYPE_NAME, DEFAULT_PERIOD
 from .constant_ductility_iteration import constant_ductility_iteration
 from .constant_strength_analysis import constant_strength_analysis
 from .time_history_analysis import time_history_analysis
@@ -44,7 +44,7 @@ class Win(QDialog):
         if nrsa.period is not None:
             self.period = nrsa.period
         else:
-            self.period = PERIOD
+            self.period = DEFAULT_PERIOD
         self.Ti = nrsa.Ti
         self.material_function = nrsa.material_function
         self.material_paras = nrsa.material_paras
@@ -404,7 +404,8 @@ class _Worker(QThread):
         self.set_button_enabled()
         self.counter_requried = 0  # SDOF任务计数器
         th_shm_ls: list[SharedMemory] = []
-        Sa_shm_ls: list[SharedMemory] = []
+        Sa_5pct_shm_ls: list[SharedMemory] = []
+        Sa_spc_shm_ls: list[SharedMemory] = []
         NPTS_ls: list[int] = []
         for gm_idx in range(self.GM_N):
             # 将地震动数据存储到共享内存中
@@ -415,28 +416,29 @@ class _Worker(QThread):
             shm_array = np.ndarray(gm_th.shape, dtype=gm_th.dtype, buffer=shm.buf)
             shm_array[:] = gm_th[:]
             th_shm_ls.append(shm)
-            if self.analysis_type == 'CDA':
-                # 等延性分析中，Sa为采用分析阻尼比的无缩放谱加速度
-                if isinstance(self.unscaled_RSA_spc, dict):
-                    Sa_ls = self.unscaled_RSA_spc[self.damping][:, gm_idx]
-                else:
-                    Sa_ls = self.unscaled_RSA_spc[:, gm_idx]
-            elif self.analysis_type in ['CSA', 'THA']:
-                # 等强度分析或时程分析中，Sa为采用5%阻尼比的缩放后的谱加速度
-                Sa_ls = self.unscaled_RSA_5pct[:, gm_idx] * self.GM_indiv_sf[gm_idx]
+            Sa_ls_5pct = self.unscaled_RSA_5pct[:, gm_idx]  # 无缩放，5%阻尼比谱加速度
+            # 无缩放，分析阻尼比谱加速度
+            if isinstance(self.unscaled_RSA_spc, dict):
+                Sa_ls_spc = self.unscaled_RSA_spc[self.damping][:, gm_idx]
+            else:
+                Sa_ls_spc = self.unscaled_RSA_spc[:, gm_idx]
             # 将Sa存储到共享内存中
-            Sa_shm = SharedMemory(create=True, size=Sa_ls.nbytes)
-            Sa_shm_array = np.ndarray(Sa_ls.shape, dtype=Sa_ls.dtype, buffer=Sa_shm.buf)
-            Sa_shm_array[:] = Sa_ls[:]
-            Sa_shm_ls.append(Sa_shm)
+            Sa_5pct_shm = SharedMemory(create=True, size=Sa_ls_5pct.nbytes)
+            Sa_5pct_shm_array = np.ndarray(Sa_ls_5pct.shape, dtype=Sa_ls_5pct.dtype, buffer=Sa_5pct_shm.buf)
+            Sa_5pct_shm_array[:] = Sa_ls_5pct[:]
+            Sa_5pct_shm_ls.append(Sa_5pct_shm)  # 无缩放，5%阻尼比谱加速度
+            Sa_spc_shm = SharedMemory(create=True, size=Sa_ls_spc.nbytes)
+            Sa_spc_shm_array = np.ndarray(Sa_ls_spc.shape, dtype=Sa_ls_spc.dtype, buffer=Sa_spc_shm.buf)
+            Sa_spc_shm_array[:] = Sa_ls_spc[:]
+            Sa_spc_shm_ls.append(Sa_spc_shm)  # 无缩放，分析阻尼比谱加速度
         N_period = len(self.period)
         period_shm = SharedMemory(create=True, size=self.period.nbytes)
         period_shm_array = np.ndarray(self.period.shape, dtype=self.period.dtype, buffer=period_shm.buf)
         period_shm_array[:] = self.period[:]
-        N_PERIOD = len(PERIOD)
-        PERIOD_shm = SharedMemory(create=True, size=PERIOD.nbytes)  # 全局周期，仅用于计算地震动反应谱获得Sa(Ti)
-        PERIOD_shm_array = np.ndarray(PERIOD.shape, dtype=PERIOD.dtype, buffer=PERIOD_shm.buf)
-        PERIOD_shm_array[:] = PERIOD[:]
+        N_PERIOD = len(DEFAULT_PERIOD)
+        PERIOD_shm = SharedMemory(create=True, size=DEFAULT_PERIOD.nbytes)  # 全局周期，仅用于计算地震动反应谱获得Sa(Ti)
+        PERIOD_shm_array = np.ndarray(DEFAULT_PERIOD.shape, dtype=DEFAULT_PERIOD.dtype, buffer=PERIOD_shm.buf)
+        PERIOD_shm_array[:] = DEFAULT_PERIOD[:]
         with multiprocessing.Pool(self.parallel) as pool:
             for para_group in para_groups:
                 if num_paras > 1:
@@ -454,7 +456,8 @@ class _Worker(QThread):
                     he = self.he
                     gm_name = self.GM_names[gm_idx]
                     gm_shm = th_shm_ls[gm_idx]
-                    Sa_shm = Sa_shm_ls[gm_idx]
+                    Sa_5pct_shm = Sa_5pct_shm_ls[gm_idx]
+                    Sa_spc_shm = Sa_spc_shm_ls[gm_idx]
                     NPTS = NPTS_ls[gm_idx]
                     scaling_factor = self.GM_global_sf
                     dt = self.GM_dts[gm_idx]
@@ -476,22 +479,24 @@ class _Worker(QThread):
                         queue.put({'a': (gm_name, 0, finished_sdof, None, 1, 0, 0, None)})
                         continue
                     if self.analysis_type == 'CDA':
-                        args = (wkdir, subfolder, period_shm.name, N_period, material_function, para_group, damping,\
-                                target_ductility, thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt,\
-                                fv_duration, fv_factor, R_init, R_incr, Sa_shm.name, solver, tol_ductility, tol_R,\
-                                max_iter, hidden_prints, queue, stop_event, pause_event, lock)
+                        args = (wkdir, subfolder, period_shm.name, N_period, material_function, para_group, damping,
+                                target_ductility, thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt,
+                                fv_duration, fv_factor, R_init, R_incr, Sa_5pct_shm.name, Sa_spc_shm.name, solver,
+                                tol_ductility, tol_R, max_iter, hidden_prints, queue, stop_event, pause_event, lock)
                         func = constant_ductility_iteration
                     elif self.analysis_type == 'CSA':
                         scaling_factor *= self.GM_indiv_sf[gm_idx]
-                        args = (wkdir, subfolder, period_shm.name, N_period, material_function, para_group, damping,\
-                                thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, fv_factor,\
-                                Sa_shm.name, solver, hidden_prints, queue, stop_event, pause_event, lock)
+                        args = (wkdir, subfolder, period_shm.name, N_period, material_function, para_group, damping,
+                                thetaD, mass, he, gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, fv_factor,
+                                Sa_5pct_shm.name, Sa_spc_shm.name, solver, hidden_prints, queue, stop_event, pause_event,
+                                lock)
                         func = constant_strength_analysis
                     elif self.analysis_type == 'THA':
                         scaling_factor *= self.GM_indiv_sf[gm_idx]
-                        args = (wkdir, subfolder, Ti, material_function, para_group, damping, thetaD, mass, he,\
+                        args = (wkdir, subfolder, Ti, material_function, para_group, damping, thetaD, mass, he,
                                 gm_name, gm_shm.name, NPTS, scaling_factor, dt, fv_duration, fv_factor, PERIOD_shm.name,
-                                N_PERIOD, Sa_shm.name, solver, hidden_prints, queue, stop_event, pause_event, lock)
+                                N_PERIOD, Sa_5pct_shm.name, Sa_spc_shm.name, solver, hidden_prints, queue, stop_event,
+                                pause_event, lock)
                         func = time_history_analysis
                     else:
                         assert False, f'Unknow running type: {self.analysis_type}'
@@ -505,8 +510,8 @@ class _Worker(QThread):
         period_shm.unlink()
         PERIOD_shm.close()
         PERIOD_shm.unlink()
-        Sa_shm.close()
-        Sa_shm.unlink()
+        Sa_5pct_shm.close()
+        Sa_spc_shm.unlink()
  
     def set_button_enabled(self):
         """将`保存`, `中断`, `暂停`三个按钮激活"""

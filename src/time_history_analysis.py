@@ -46,7 +46,8 @@ def _time_history_analysis(
     fv_factor: float,
     periods_shm_name: str,
     N_PERIOD: int,
-    Sa_shm_name: str,
+    Sa_5pct_shm_name: str,
+    Sa_spc_shm_name: str,
     solver: SOLVER_TYPING,
     hidden_prints: bool,
     queue: multiprocessing.Queue,
@@ -70,12 +71,13 @@ def _time_history_analysis(
         GM_name (str): 地震动名称
         gm_shm_name (str): 地震动共享内存名
         NPTS (int): 时间步数
-        scaling_factor (float): 地震动时缩放系数
+        scaling_factor (float): 地震动缩放系数
         dt (float): 时间步长
         fv_duration (float): 自由振动持续时间
         periods_shm_name (str): 周期序列共享内存名
         N_PERIOD (int): 周期数
-        Sa_shm_name (str): 加速度反应谱共享内存名
+        Sa_5pct_shm_name (str): 共享内存名，对应于无缩放，5%阻尼比的弹性谱加速度
+        Sa_spc_shm_name (str): 共享内存名，对应于无缩放，分析用阻尼比的弹性谱加速度
         solver (SOLVER_TYPES): SODF求解器类型
         hidden_prints (bool): 是否屏蔽输出
         queue (multiprocessing.Queue): 进程通信
@@ -87,15 +89,19 @@ def _time_history_analysis(
     periods_shm = SharedMemory(name=periods_shm_name)
     periods = np.ndarray(shape=(N_PERIOD,), dtype=np.dtype('float64'), buffer=periods_shm.buf).copy()
     periods_shm.close()
-    Sa_shm = SharedMemory(name=Sa_shm_name)
-    Sa_ls = np.ndarray(shape=(N_PERIOD,), dtype=np.dtype('float64'), buffer=Sa_shm.buf).copy()
-    Sa_shm.close()
-    get_Sa = interp1d(periods, Sa_ls, kind='linear', fill_value='extrapolate')
+    Sa_5pct_shm = SharedMemory(name=Sa_5pct_shm_name)
+    Sa_5pct_ls = np.ndarray(shape=(N_PERIOD,), dtype=np.dtype('float64'), buffer=Sa_5pct_shm.buf).copy()
+    Sa_5pct_shm.close()
+    Sa_spc_shm = SharedMemory(name=Sa_spc_shm_name)
+    Sa_spc_ls = np.ndarray(shape=(N_PERIOD,), dtype=np.dtype('float64'), buffer=Sa_spc_shm.buf).copy()
+    Sa_spc_shm.close()
+    get_Sa_5pct = interp1d(periods, Sa_5pct_ls, kind='linear', fill_value='extrapolate')
+    get_Sa_spc = interp1d(periods, Sa_spc_ls, kind='linear', fill_value='extrapolate')
     gm_shm = SharedMemory(name=gm_shm_name)
     th = np.ndarray(shape=(NPTS,), dtype=np.dtype('float64'), buffer=gm_shm.buf).copy()
     gm_shm.close()
     num_ana = 1
-    results = pd.DataFrame(None, columns=['T', 'E', 'Fy', 'uy', 'Sa', 'R', 'miu', 'maxDisp', 'maxVel', 'maxAccel', 'Ec', 'Ev', 'maxReaction', 'CD', 'CPD','resDisp', 'solving_converge'])
+    results = pd.DataFrame(None, columns=['T', 'E', 'Fy', 'uy', 'Sa_5pct', 'Sa_spc', 'R', 'miu', 'maxDisp', 'maxVel', 'maxAccel', 'Ec', 'Ev', 'maxReaction', 'CD', 'CPD','resDisp', 'solving_converge'])
     package_name = __package__
     module_attr = {
         'newmark': 'newmark_solver',
@@ -108,10 +114,12 @@ def _time_history_analysis(
         return
     pause_event.wait()
     if Ti is not None:
-        Sa = get_Sa(Ti)  # 弹性谱加速度
+        Sa_5pct = float(get_Sa_5pct(Ti))  # 5%阻尼比谱加速度
+        Sa_spc = float(get_Sa_spc(Ti))  # 分析阻尼谱加速度
     else:
-        Sa = None
-    mat_paras, Fy, E = material_function(Ti, mass, Sa, *material_paras)
+        Sa_5pct = None
+        Sa_spc = None
+    mat_paras, Fy, E = material_function(Ti, mass, Sa_5pct, Sa_spc, scaling_factor, *material_paras)
     uy = Fy / E
     if thetaD == 0:
         P = 0
@@ -171,8 +179,9 @@ def _time_history_analysis(
     results.loc[row, 'E'] = E
     results.loc[row, 'Fy'] = Fy
     results.loc[row, 'uy'] = Fy / E
-    results.loc[row, 'Sa'] = Sa
-    results.loc[row, 'R']   = mass * Sa * 9800 / Fy
+    results.loc[row, 'Sa_5pct'] = Sa_5pct
+    results.loc[row, 'Sa_spc'] = Sa_spc
+    results.loc[row, 'R']   = mass * Sa_spc * 9800 / Fy
     results.loc[row, 'miu'] = maxDisp / uy
     results.loc[row, 'solving_converge'] = solving_converge
     end_time = time.time()

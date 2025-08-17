@@ -45,7 +45,8 @@ def _constant_strength_analysis(
     dt: float,
     fv_duration: float,
     fv_factor: float,
-    Sa_shm_name: str,
+    Sa_5pct_shm_name: str,
+    Sa_spc_shm_name: str,
     solver: SOLVER_TYPING,
     hidden_prints: bool,
     queue: multiprocessing.Queue,
@@ -73,7 +74,8 @@ def _constant_strength_analysis(
         scaling_factor (float): 地震动时缩放系数
         dt (float): 时间步长
         fv_duration (float): 自由振动持续时间
-        Sa_shm_name (str): 加速度反应谱共享内存名
+        Sa_5pct_shm_name (str): 共享内存名，对应于无缩放，5%阻尼比的弹性谱加速度
+        Sa_spc_shm_name (str): 共享内存名，对应于无缩放，分析用阻尼比的弹性谱加速度
         solver (SOLVER_TYPES): SODF求解器类型
         hidden_prints (bool): 是否屏蔽输出
         queue (multiprocessing.Queue): 进程通信
@@ -86,14 +88,17 @@ def _constant_strength_analysis(
     periods = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=periods_shm.buf).copy()
     periods_shm.close()
     periods: list[float] = list(periods)
-    Sa_shm = SharedMemory(name=Sa_shm_name)
-    Sa_ls = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=Sa_shm.buf).copy()
-    Sa_shm.close()
+    Sa_5pct_shm = SharedMemory(name=Sa_5pct_shm_name)
+    Sa_5pct_ls = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=Sa_5pct_shm.buf).copy()
+    Sa_5pct_shm.close()
+    Sa_spc_shm = SharedMemory(name=Sa_spc_shm_name)
+    Sa_spc_ls = np.ndarray(shape=(num_period,), dtype=np.dtype('float64'), buffer=Sa_spc_shm.buf).copy()
+    Sa_spc_shm.close()
     gm_shm = SharedMemory(name=gm_shm_name)
     th = np.ndarray(shape=(NPTS,), dtype=np.dtype('float64'), buffer=gm_shm.buf).copy()
     gm_shm.close()
     num_ana = 0  # 计算该地震动所进行的总SDOF分析次数
-    results = pd.DataFrame(None, columns=['T', 'E', 'Fy', 'uy', 'Sa', 'R', 'miu', 'maxDisp', 'maxVel', 'maxAccel', 'Ec', 'Ev', 'maxReaction', 'CD', 'CPD','resDisp', 'solving_converge'])
+    results = pd.DataFrame(None, columns=['T', 'E', 'Fy', 'uy', 'Sa_5pct', 'Sa_spc', 'R', 'miu', 'maxDisp', 'maxVel', 'maxAccel', 'Ec', 'Ev', 'maxReaction', 'CD', 'CPD','resDisp', 'solving_converge'])
     package_name = __package__
     module_attr = {
         'newmark': 'newmark_solver',
@@ -106,8 +111,9 @@ def _constant_strength_analysis(
             queue.put({'e': '中断计算'})
             return
         pause_event.wait()
-        Sa = Sa_ls[idx]  # 弹性谱加速度
-        mat_paras, Fy, E = material_function(Ti, mass, Sa, *material_paras)
+        Sa_5pct = Sa_5pct_ls[idx]  # 无缩放，5%阻尼比谱加速度
+        Sa_spc = Sa_spc_ls[idx]  # 无缩放，分析用阻尼比谱加速度
+        mat_paras, Fy, E = material_function(Ti, mass, Sa_5pct, Sa_spc, scaling_factor, *material_paras)
         uy = Fy / E
         if thetaD == 0:
             P = 0
@@ -166,8 +172,9 @@ def _constant_strength_analysis(
         results.loc[row, 'E'] = E
         results.loc[row, 'Fy'] = Fy
         results.loc[row, 'uy'] = Fy / E
-        results.loc[row, 'Sa'] = Sa
-        results.loc[row, 'R'] = mass * Sa * 9800 / Fy
+        results.loc[row, 'Sa_5pct'] = Sa_5pct
+        results.loc[row, 'Sa_spc'] = Sa_spc
+        results.loc[row, 'R'] = mass * Sa_spc * 9800 / Fy
         results.loc[row, 'miu'] = maxDisp / uy
         results.loc[row, 'solving_converge'] = solving_converge
     end_time = time.time()

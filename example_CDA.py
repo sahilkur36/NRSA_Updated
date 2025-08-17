@@ -10,7 +10,9 @@ def material_definition(
     Ti: float,
     m: float,
     R: float,
-    Sa: float,
+    Sa_5pct: float,
+    Sa_spc: float,
+    scaling_factor: float,
     *args: float
 ) -> tuple[dict[str, tuple | float], float, float]:
     """给定周期点、质量、强度折减系数、弹性谱加速度，用户自定义opensees材料参数的计算方法  
@@ -21,7 +23,9 @@ def material_definition(
         Ti (float): 周期点
         m (float): 质量
         R (float): 强度折减系数
-        Sa (float): 弹性谱加速度(g)，等延性分析中，Sa为采用分析阻尼比的无缩放谱加速度
+        Sa_5pct (float): 无缩放，5%阻尼比的地震动弹性谱加速度
+        Sa_spc (float): 无缩放，分析用阻尼比的地震动弹性谱加速度
+        scaling_factor (float): 地震动缩放系数系数
         Args (float): 定义opensees材料所需的相关参数，一般建议取为无量纲系数，并以此计算定义材料所需的直接参数
 
     Returns:
@@ -47,7 +51,7 @@ def material_definition(
     # ===========================================================
     # --------------- ↓ 用户只能更改以下代码 ↓ --------------------
     alpha, = args
-    Fe = m * Sa * 9800  # 弹性SDOF最大力需求
+    Fe = m * Sa_spc * 9800  # 弹性SDOF最大力需求
     E = (2 * pi / Ti) ** 2 * m
     Fy = Fe / R
     ops_paras = {'Steel01': (Fy, E, alpha)}

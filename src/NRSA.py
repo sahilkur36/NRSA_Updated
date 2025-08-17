@@ -11,7 +11,7 @@ from itertools import product
 import shutil
 import numpy as np
 from .config import LOGGER, ANA_TYPE_NAME, AVAILABLE_SOLVERS,\
-    SOLVER_TYPING, PERIOD
+    SOLVER_TYPING, DEFAULT_PERIOD
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QApplication, QMessageBox
 
@@ -253,7 +253,7 @@ class NRSA:
         if self.period is not None:
             period = self.period
         else:
-            period = PERIOD
+            period = DEFAULT_PERIOD
         GM_folder = Path(GM_folder)
         if not self._check_path_name(GM_folder):
             raise Exception('Analysis has been terminated')
@@ -342,7 +342,7 @@ class NRSA:
         self.kwargs = kwargs
 
     def run(self):
-        if (not self.damping_equal_5pct) and (self.analysis_type == 'CDA'):
+        if not self.damping_equal_5pct:
             self._write_unscaled_spectra_with_specific_damping()
         try:
             self.para_groups = list(product(*self.material_paras.values()))  # 材料参数组合
@@ -379,7 +379,7 @@ class NRSA:
         if self.period is not None:
             job['Periods'] = self.period.tolist()
         else:
-            job['Periods'] = PERIOD.tolist()
+            job['Periods'] = DEFAULT_PERIOD.tolist()
         job['Ground motion names'] = self.GM_names
         job['Ground motion time intervals'] = self.GM_dts
         job['Ground motion lengths'] = self.GM_NPTS
@@ -394,7 +394,7 @@ class NRSA:
         self.app.exec_()
 
     def _write_unscaled_spectra_with_specific_damping(self):
-        """如果分析阻尼比不等于，则重新计算特定阻尼比反应谱并幅值路径"""
+        """如果分析阻尼比不等于，则重新计算特定阻尼比反应谱并复制路径"""
         spectra_folder = self.wkdir / f'Unscaled {self.damping:.2%}-damping spectra'
         if not Path(spectra_folder).exists():
             os.makedirs(spectra_folder)
@@ -405,7 +405,10 @@ class NRSA:
             self.unscaled_RSA_spc[:, i] = RSA
             np.savetxt(spectra_folder / f'RSA_{self.GM_names[i]}.txt', RSA)
         print('', end='')
-        np.savetxt(spectra_folder / 'Periods.txt', self.period)
+        if self.period is not None:
+            np.savetxt(spectra_folder / 'Periods.txt', self.period)
+        else:
+            np.savetxt(spectra_folder / 'Periods.txt', DEFAULT_PERIOD)
         self.unscaled_spectra_folder_spc = spectra_folder
 
     @staticmethod

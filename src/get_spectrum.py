@@ -5,17 +5,20 @@ from pathlib import Path
 from typing import Literal
 import numpy as np
 from .spectrum import spectrum
+from .config import DEFAULT_PERIOD
 
 
 def get_spectrum(
     ag: np.ndarray,
     dt: float,
-    T: np.ndarray,
+    T: np.ndarray | None,
     zeta: float,
     algorithm: Literal['NJ', 'NM']='NM',
     cache_dir: Path | str=None
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """计算反应谱，如果有缓存则从缓存中读取"""
+    if T is None:
+        T = DEFAULT_PERIOD
     if cache_dir is not None:
         cache_dir = Path(cache_dir)
         bdata = T.tobytes() + ag.tobytes() + struct.pack('d', dt) + struct.pack('d', zeta)

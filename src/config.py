@@ -20,4 +20,4 @@ ANA_TYPE_NAME = {
     'CSA': 'Constant strength analysis',
     'THA': 'Time history analysis'
 }
-PERIOD = np.arange(0.01, 6.01, 0.01)
+DEFAULT_PERIOD = np.arange(0.01, 6.01, 0.01)

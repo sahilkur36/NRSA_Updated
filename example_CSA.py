@@ -8,7 +8,9 @@ from src.analysis import ConstantStrengthAnalysis
 def material_definition(
     Ti: float,
     m: float,
-    Sa: float,
+    Sa_5pct: float,
+    Sa_spc: float,
+    scaling_factor: float,
     *args: float
 ) -> tuple[dict[str, tuple | float], float, float]:
     """给定周期点、质量、强度折减系数、弹性谱加速度，用户自定义opensees材料参数的计算方法  
@@ -18,7 +20,9 @@ def material_definition(
     Args:
         Ti (float): 周期点
         m (float): 质量
-        Sa (float): 弹性谱加速度(g)，等强度分析中，Sa为采用5%阻尼比的缩放后的谱加速度
+        Sa_5pct (float): 无缩放，5%阻尼比的地震动弹性谱加速度
+        Sa_spc (float): 无缩放，分析用阻尼比的地震动弹性谱加速度
+        scaling_factor (float): 地震动缩放系数系数
         Args (float): 定义opensees材料所需的相关参数，一般建议取为无量纲系数，并以此计算定义材料所需的直接参数
 
     Returns:

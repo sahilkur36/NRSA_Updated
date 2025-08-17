@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from .config import LOGGER, PERIOD
+from .config import LOGGER, DEFAULT_PERIOD
 from .NRSA import NRSA
 
 
@@ -73,6 +73,7 @@ class ConstantDuctilityAnalysis(NRSA):
                                   tol_ductility, tol_R, max_iter, thetaD, mass,
                                   height, fv_duration, fv_factor)
 
+
 class CSA_THA(NRSA):
     def __init__(self, job_name: str, cache_dir: Path | str, analysis_type: str):
         super().__init__(job_name, cache_dir, analysis_type=analysis_type)
@@ -120,7 +121,7 @@ class CSA_THA(NRSA):
         if self.analysis_type == 'CSA':
             period = self.period
         else:
-            period = PERIOD
+            period = DEFAULT_PERIOD
         method = method
         if target_spectrum is not None:
             T_code, Sa_code = target_spectrum[:, 0], target_spectrum[:, 1]
