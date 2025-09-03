@@ -126,7 +126,7 @@ def _time_history_analysis(
     else:
         P = thetaD * E * height
     fv_duration = max(fv_duration, fv_factor * Ti)
-    solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, c, mass)
+    solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, c, damping, mass)
     try:
         res: dict[str, float]
         res_th: tuple[np.ndarray, ...]

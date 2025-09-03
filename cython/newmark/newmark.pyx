@@ -48,6 +48,7 @@ def newmark_solver(
     double P,
     double h,
     double c,
+    double damping,
     double m,
     double g=9800,
     double collapse_disp=1e14,

@@ -150,7 +150,7 @@ def _constant_ductility_iteration(
             else:
                 P = thetaD * E * height
             fv_duration = max(fv_duration, fv_factor * Ti)
-            solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, c, mass)
+            solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, c, damping, mass)
             try:
                 if solver == 'auto':
                     for module_name in ['newmark', 'ops_solver']:
@@ -200,7 +200,6 @@ def _constant_ductility_iteration(
             miu = maxDisp / uy  # 延性
             current_tol_ductility = abs(miu - target_ductility) / target_ductility
             current_tol_R = abs(R1 - R2) / max(R1, R2)
-            # print('--------------', miu, maxDisp, mat_paras)
             if current_tol_ductility < best_tol_ductility:
                 # 更新最小容差，最优R，最优延性，最优结果
                 best_tol_ductility = current_tol_ductility

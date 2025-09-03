@@ -32,6 +32,7 @@ def ops_solver(
         P: float=0,
         h: float=1,
         c: float=0,
+        damping: float=0,
         m: float=1,
         g: float=9800,
         collapse_disp: float=1e14,
@@ -53,6 +54,10 @@ def ops_solver(
         P (float, optional): 引起P-Delta效应的竖向载荷，默认None
         h (float, optional): 引起P-Delta效应的SDOF体系高度，默认1
         c (float, optional): 阻尼系数(不是阻尼比)
+        damping (float, optional): 阻尼比(同时传入阻尼比和阻尼系数的目的在于，用户
+          给定的阻尼系数可能不是基于真实的结构频率计算得到的，为了能使用OpenSees自带
+          的Rayleigh阻尼模型，需根据阻尼比反算出一个伪自振频率，再计算Rayleigh阻尼
+          参数，实际上应以实现传入的阻尼系数为准)
         m (float, optional): 质量，默认1
         g (float, optional): 重力加速度，默认9800
         collapse_disp (float, optional): 倒塌位移判定准则，默认1e14
@@ -92,7 +97,9 @@ def ops_solver(
          1 o (accel input)
     """
     with SDOFHelper(False, False):
-        model = _ops_solver(T, ag, dt, materials, uy, fv_duration, sf, P, h, c, m, g, collapse_disp, maxAnalysis_disp, record_res)
+        model = _ops_solver(T, ag, dt, materials, uy, fv_duration, sf, P, h, c,
+                            damping, m, g, collapse_disp, maxAnalysis_disp,
+                            record_res)
         results = model.get_results()
     return results
 
@@ -109,6 +116,7 @@ class _ops_solver:
             P: float=0,
             h: float=1,
             c: float=0,
+            damping: float=0,
             m: float=1,
             g: float=9800,
             collapse_disp: float=1e14,
@@ -124,6 +132,7 @@ class _ops_solver:
         self.P = P
         self.h = h
         self.c = c
+        self.damping = damping
         self.m = m
         self.g = g
         self.collapse_disp = collapse_disp
@@ -131,16 +140,14 @@ class _ops_solver:
         self.record_res = record_res
         self.NPTS = len(ag)
         self.duration = (self.NPTS - 1) * dt + fv_duration
-        omega = 2 * pi / T
         self.a = 0
-        self.b = c / (m * omega ** 2)  # b = 2ξ/ω, c = 2mξω, 联立得b = c/(2mω^2)
+        self.b = 4 * m * self.damping ** 2 / c  # b=2ζ/ω，c=2mζω，联立得b=2mζ^2/c，其中ω不一定是真实的频率
         # self.a = 2 * zeta * omega
         # self.b = 0
         # self.a = 0
         # self.b = 0
         # print(f'a = {self.a}, b = {self.b}')
-        # self.c = 2 * m * zeta * omega
-        # print(f'c = {self.c}')
+        # self.c = 2 * m * 0.02 * omega
         self.time = []  # 时间序列
         self.ag_scaled = []  # 地面运动
         self.disp_th = []  # 相对位移

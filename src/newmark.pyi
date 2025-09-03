@@ -12,6 +12,7 @@ def newmark_solver(
     P: float,
     h: float,
     c: float,
+    damping: float,
     m: float,
     g: float = 9800,
     collapse_disp: float = 1e14,
