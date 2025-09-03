@@ -18,7 +18,7 @@ class ConstantDuctilityAnalysis(NRSA):
 
     def analysis_settings(self,
             period: np.ndarray | float,
-            material_function: Callable[[float, float, float, float], tuple[str, list, float, float]],
+            material_function: Callable[[float, float, float, float], tuple[str, list, float, float, float]],
             material_paras: dict[str, tuple | float],
             damping: float,
             target_ductility: float,
@@ -37,7 +37,7 @@ class ConstantDuctilityAnalysis(NRSA):
 
         Args:
             period (np.ndarray | float): 等延性谱周期序列
-            material_function (Callable[[float, float, float, float], tuple[str, list, float, float]]): 获取opensees材料格式的函数
+            material_function (Callable[[float, float, float, float], tuple[str, list, float, float, float]]): 获取opensees材料格式的函数
             material_paras (dict[str, float]): 材料定义所需参数
             damping (float): 阻尼比
             target_ductility (float): 目标延性
@@ -358,7 +358,7 @@ class ConstantStrengthAnalysis(CSA_THA):
 
     def analysis_settings(self,
             period: np.ndarray | float,
-            material_function: Callable[[float, float], tuple[str, list, float, float]],
+            material_function: Callable[[float, float], tuple[str, list, float, float, float]],
             material_paras: dict[str, tuple | float],
             damping: float,
             thetaD: float=0,
@@ -371,7 +371,7 @@ class ConstantStrengthAnalysis(CSA_THA):
 
         Args:
             period (np.ndarray | float): 等延性谱周期序列
-            material_function (Callable[[float, float, float, float], tuple[str, list, float, float]]): 获取opensees材料格式的函数
+            material_function (Callable[[float, float, float, float], tuple[str, list, float, float, float]]): 获取opensees材料格式的函数
             material_paras (dict[str, float]): 材料定义所需参数
             damping (float): 阻尼比
             thetaD (float): P-Delta系数
@@ -392,7 +392,7 @@ class TimeHistoryAnalysis(CSA_THA):
 
     def analysis_settings(self,
             Ti: float,
-            material_function: Callable[[float, float], tuple[str, list, float, float]],
+            material_function: Callable[[float, float], tuple[str, list, float, float, float]],
             material_paras: dict[str, tuple | float],
             damping: float,
             thetaD: float=0,
@@ -405,7 +405,7 @@ class TimeHistoryAnalysis(CSA_THA):
 
         Args:
             Ti (float): 周期点
-            material_function (Callable[[float, float, float, float], tuple[str, list, float, float]]): 获取opensees材料格式的函数
+            material_function (Callable[[float, float, float, float], tuple[str, list, float, float, float]]): 获取opensees材料格式的函数
             material_paras (dict[str, float]): 材料定义所需参数
             damping (float): 阻尼比
             thetaD (float): P-Delta系数

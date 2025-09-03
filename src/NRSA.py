@@ -65,7 +65,7 @@ class NRSA:
         self.wkdir: Path = None
         self.skip_existed_res = False
         self.period: np.ndarray = None
-        self.material_function: Callable[[float, float, float, float], tuple[str, list, float, float]] = None
+        self.material_function: Callable[[float, float, float, float], tuple[str, list, float, float, float]] = None
         self.material_paras: dict[str, float] = None
         self.damping = None
         self.target_ductility = None

@@ -113,14 +113,14 @@ def _constant_strength_analysis(
         pause_event.wait()
         Sa_5pct = Sa_5pct_ls[idx]  # 无缩放，5%阻尼比谱加速度
         Sa_spc = Sa_spc_ls[idx]  # 无缩放，分析用阻尼比谱加速度
-        mat_paras, Fy, E = material_function(Ti, mass, Sa_5pct, Sa_spc, scaling_factor, *material_paras)
-        uy = Fy / E
+        mat_paras, uy, E, c = material_function(Ti, mass, Sa_5pct, Sa_spc, damping, scaling_factor, *material_paras)
+        Fy = E * uy
         if thetaD == 0:
             P = 0
         else:
             P = thetaD * E * height
         fv_duration = max(fv_duration, fv_factor * Ti)
-        solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, damping, mass)
+        solver_paras = (Ti, th, dt, mat_paras, uy, fv_duration, scaling_factor, P, height, c, mass)
         try:
             if solver == 'auto':
                 for module_name in ['newmark', 'ops_solver']:

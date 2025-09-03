@@ -5,51 +5,63 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from src.analysis import ConstantStrengthAnalysis
 
+
 def material_definition(
     Ti: float,
-    m: float,
+    mass: float,
     Sa_5pct: float,
     Sa_spc: float,
+    damping: float,
     scaling_factor: float,
     *args: float
-) -> tuple[dict[str, tuple | float], float, float]:
-    """给定周期点、质量、强度折减系数、弹性谱加速度，用户自定义opensees材料参数的计算方法  
-    用户可修改传入的`args`参数和函数内部的计算过程，但不能修改函数的前两个传入参数(`Ti`、`m`和`Sa`)  
-    返回值中的屈服力和弹性刚度将用于计算延性需求
-
+) -> tuple[dict[str, tuple | float], float, float, float]:
+    """该函数传入SDOF体系的周期、质量等信息，用户需通过`args`获取预先定义的相关控制参  
+    数，并计算OpenSees材料的具体参数，并返回规定的变量。 
+    
     Args:
         Ti (float): 周期点
-        m (float): 质量
+        mass (float): 质量
         Sa_5pct (float): 无缩放，5%阻尼比的地震动弹性谱加速度
         Sa_spc (float): 无缩放，分析用阻尼比的地震动弹性谱加速度
+        damping (float): 阻尼比
         scaling_factor (float): 地震动缩放系数系数
-        Args (float): 定义opensees材料所需的相关参数，一般建议取为无量纲系数，并以此计算定义材料所需的直接参数
+        Args (float): 定义opensees材料所需的相关参数，一般建议取为无量纲系数，并以此
+          计算定义材料所需的直接参数，如`Cy`和`alpha`
 
     Returns:
-        tuple[dict[str, tuple | float], float, float]: OpenSees材料定义格式
+        tuple[dict[str, tuple | float], float, float, float]: OpenSees材料定义格式  
 
-    Note:
-    -----
+    Note-1:
+    -------
     OpenSees材料定义格式为{`材料名`: (参数1, 参数2, ...)}，不包括材料编号。  
     例如：  
     >>> ops_paras = {'Steel01': (Fy, E, b)}
 
-    其中，`Fy`，`E`和`b`应直接幅值或通过`Ti`、`m`和`Sa`计算得到。  
+    其中，`Fy`，`E`和`b`应直接幅值或通过`Ti`、`mass`和`Sa_spc`计算得到。  
     当需要使用多个材料进行并联时，可在`ops_paras`中定义多个材料。  
     例如：  
     >>> ops_paras = {'Steel01': (Fy, E1, b), 'Elastic': E2}
     注：当材料参数只有一个时，可省略括号
+    
+    Note-2:
+    -------
+    返回值中，`ops_paras`为OpenSees的材料参数，`yield_disp`为屈服位移，用于计算延性  
+    需求，`initial_stiffness`为初始刚度，用于计算P-Delta效应引起的负刚度(当`thetaD=0`  
+    时不考虑P-Delta效应)，`damping_coef`为阻尼系数(不是阻尼比)，可基于传入的`damping`  
+    和`mass`进行计算。
     """
     # ===========================================================
     # --------------- ↓ 用户只能更改以下代码 ↓ --------------------
     Cy, alpha = args
-    E = (2 * pi / Ti) ** 2 * m
-    Fy = m * 9800 * Cy
-    ops_paras = {'Steel01': (Fy, E, alpha)}
-    yield_strength, initial_stiffness = Fy, E
+    E = (2 * pi / Ti) ** 2 * mass
+    Fy = mass * 9800 * Cy
+    ops_paras = {'Steel01': (Fy, E, alpha), 'Elastic': 1}
+    yield_disp, initial_stiffness = Fy / E, E
+    omega = 2 * pi / Ti
+    damping_coef = 2 * mass * damping * omega
     # --------------- ↑ 用户只能更改以上代码 ↑ --------------------
     # ===========================================================
-    return ops_paras, yield_strength, initial_stiffness
+    return ops_paras, yield_disp, initial_stiffness, damping_coef
 
 
 if __name__ == "__main__":

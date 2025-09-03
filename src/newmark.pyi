@@ -11,7 +11,7 @@ def newmark_solver(
     sf: float,
     P: float,
     h: float,
-    zeta: float,
+    c: float,
     m: float,
     g: float = 9800,
     collapse_disp: float = 1e14,

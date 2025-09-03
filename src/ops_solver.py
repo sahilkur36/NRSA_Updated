@@ -31,7 +31,7 @@ def ops_solver(
         sf: float=None,
         P: float=0,
         h: float=1,
-        zeta: float=0.05,
+        c: float=0,
         m: float=1,
         g: float=9800,
         collapse_disp: float=1e14,
@@ -52,7 +52,7 @@ def ops_solver(
         sf (float, optional): 地震动放大系数，默认不额外进行缩放
         P (float, optional): 引起P-Delta效应的竖向载荷，默认None
         h (float, optional): 引起P-Delta效应的SDOF体系高度，默认1
-        zeta (float, optional): 阻尼比，默认0.05
+        c (float, optional): 阻尼系数(不是阻尼比)
         m (float, optional): 质量，默认1
         g (float, optional): 重力加速度，默认9800
         collapse_disp (float, optional): 倒塌位移判定准则，默认1e14
@@ -92,7 +92,7 @@ def ops_solver(
          1 o (accel input)
     """
     with SDOFHelper(False, False):
-        model = _ops_solver(T, ag, dt, materials, uy, fv_duration, sf, P, h, zeta, m, g, collapse_disp, maxAnalysis_disp, record_res)
+        model = _ops_solver(T, ag, dt, materials, uy, fv_duration, sf, P, h, c, m, g, collapse_disp, maxAnalysis_disp, record_res)
         results = model.get_results()
     return results
 
@@ -108,7 +108,7 @@ class _ops_solver:
             sf: float=1,
             P: float=0,
             h: float=1,
-            zeta: float=0.05,
+            c: float=0,
             m: float=1,
             g: float=9800,
             collapse_disp: float=1e14,
@@ -123,7 +123,7 @@ class _ops_solver:
         self.sf = sf
         self.P = P
         self.h = h
-        self.zeta = zeta
+        self.c = c
         self.m = m
         self.g = g
         self.collapse_disp = collapse_disp
@@ -133,7 +133,7 @@ class _ops_solver:
         self.duration = (self.NPTS - 1) * dt + fv_duration
         omega = 2 * pi / T
         self.a = 0
-        self.b = 2 * zeta / omega
+        self.b = c / (m * omega ** 2)  # b = 2ξ/ω, c = 2mξω, 联立得b = c/(2mω^2)
         # self.a = 2 * zeta * omega
         # self.b = 0
         # self.a = 0
@@ -166,6 +166,8 @@ class _ops_solver:
         ops.mass(2, self.m)
         matTag = 1
         for matType, paras in self.materials.items():
+            if not isinstance(paras, (list, tuple)):
+                paras = (paras,)
             ops.uniaxialMaterial(matType, matTag, *paras)
             matTag += 1
         if self.P != 0:

@@ -47,7 +47,7 @@ def newmark_solver(
     double sf,
     double P,
     double h,
-    double zeta,
+    double c,
     double m,
     double g=9800,
     double collapse_disp=1e14,
@@ -62,8 +62,6 @@ def newmark_solver(
 ):
     # 初始化参数
     cdef:
-        double omega = 2 * np.pi / T
-        double c = 2 * m * zeta * omega
         cnp.ndarray[DTYPE_t, ndim=1] ag_scaled = np.hstack((ag * sf * g, np.zeros(int(fv_duration / dt))))
         int NPTS = ag_scaled.shape[0]
         
@@ -98,7 +96,7 @@ def newmark_solver(
     # 初始化材料模型
     ops.wipe()
     for matType, paras in materials.items():
-        paras_processed = _update_para(matTag, paras if isinstance(paras, tuple) else (paras,))
+        paras_processed = _update_para(matTag, paras if isinstance(paras, (list, tuple)) else (paras,))
         ops.uniaxialMaterial(matType, matTag, *paras_processed)
         matTag += 1
     
